@@ -114,22 +114,30 @@ As always, try to guess the output first! And don't forget to insert
 the output in here:
 
 >>> :k Char
+Char :: *
 
 >>> :k Bool
+Bool :: *
 
 >>> :k [Int]
+[Int] :: *
 
 >>> :k []
+[] :: * -> *
 
 >>> :k (->)
+(->) :: * -> * -> *
 
 >>> :k Either
+Either :: * -> * -> *
 
 >>> data Trinity a b c = MkTrinity a b c
 >>> :k Trinity
+Trinity :: * -> * -> * -> *
 
 >>> data IntBox f = MkIntBox (f Int)
 >>> :k IntBox
+IntBox :: (* -> *) -> *
 
 -}
 
@@ -292,8 +300,9 @@ we can reuse already known concepts (e.g. partial application) from
 values and apply them to the type level?
 -}
 instance Functor (Secret e) where
-    fmap :: (a -> b) -> Secret e a -> Secret e b
-    fmap = error "fmap for Box: not implemented!"
+  fmap :: (a -> b) -> Secret e a -> Secret e b
+  fmap _ (Trap t) = Trap t
+  fmap f (Reward a) = Reward $ f a
 
 {- |
 =⚔️= Task 3
@@ -305,7 +314,11 @@ typeclasses for standard data types.
 -}
 data List a
     = Empty
-    | Cons a (List a)
+    | Cons a (List a) deriving (Show)
+
+instance Functor List where
+  fmap _ Empty = Empty
+  fmap f (Cons x xs) = Cons (f x) (fmap f xs)
 
 {- |
 =🛡= Applicative
@@ -472,10 +485,11 @@ Implement the Applicative instance for our 'Secret' data type from before.
 -}
 instance Applicative (Secret e) where
     pure :: a -> Secret e a
-    pure = error "pure Secret: Not implemented!"
-
+    pure = Reward
     (<*>) :: Secret e (a -> b) -> Secret e a -> Secret e b
-    (<*>) = error "(<*>) Secret: Not implemented!"
+    (Trap e) <*> _ = Trap e
+    _ <*> (Trap e) = Trap e
+    (Reward a2b) <*> (Reward a) = Reward $ a2b a
 
 {- |
 =⚔️= Task 5
@@ -488,6 +502,27 @@ Implement the 'Applicative' instance for our 'List' type.
   may also need to implement a few useful helper functions for our List
   type.
 -}
+
+instance Applicative List where
+  pure :: a -> List a
+  pure x = Cons x Empty
+  Empty <*> _ = Empty
+  _ <*> Empty = Empty
+  (Cons a2b xs) <*> ys = fmap a2b ys `cat` (xs <*> ys)
+
+
+instance Foldable List where
+  foldr _ b Empty = b
+  foldr abb b (Cons a xs) = foldr abb (abb a b) xs
+
+cat :: List a -> List a -> List a
+cat a b = foldl (flip Cons) b a
+
+fromBuiltinList :: [a] -> List a
+fromBuiltinList = foldr Cons Empty
+
+toBuiltinList :: List a -> [a]
+toBuiltinList = foldr (:) []
 
 
 {- |
@@ -600,7 +635,8 @@ Implement the 'Monad' instance for our 'Secret' type.
 -}
 instance Monad (Secret e) where
     (>>=) :: Secret e a -> (a -> Secret e b) -> Secret e b
-    (>>=) = error "bind Secret: Not implemented!"
+    (Trap e) >>= _ = Trap e
+    (Reward a) >>= f = f a
 
 {- |
 =⚔️= Task 7
@@ -610,6 +646,13 @@ Implement the 'Monad' instance for our lists.
 🕯 HINT: You probably will need to implement a helper function (or
   maybe a few) to flatten lists of lists to a single list.
 -}
+
+instance Monad List where
+   Empty >>= _ = Empty
+   xs >>= f = join (fmap f xs)
+
+join :: List (List a) -> List a
+join = foldr (flip cat) Empty
 
 
 {- |
@@ -626,10 +669,10 @@ can implement a function with the type signature described below.
 
 Can you implement a monad version of AND, polymorphic over any monad?
 
-🕯 HINT: Use "(>>=)", "pure" and anonymous function
+� HINT: Use "(>>=)", "pure" and anonymous function
 -}
 andM :: (Monad m) => m Bool -> m Bool -> m Bool
-andM = error "andM: Not implemented!"
+andM a b = a >>= \a' -> if a' then b >>= \b' -> pure $ a' && b' else pure a'
 
 {- |
 =🐉= Task 9*: Final Dungeon Boss
