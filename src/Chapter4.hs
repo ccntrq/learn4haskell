@@ -716,6 +716,20 @@ Specifically,
  ❃ Implement the function to convert Tree to list
 -}
 
+data BinaryTree a  = EmptyLeaf | BinaryTree a (BinaryTree a) (BinaryTree a)
+
+instance Functor BinaryTree where
+  fmap _ EmptyLeaf = EmptyLeaf
+  fmap f (BinaryTree x l r) = BinaryTree (f x) (fmap f l) (fmap f r)
+
+reverseTree :: BinaryTree a -> BinaryTree a
+reverseTree EmptyLeaf = EmptyLeaf
+reverseTree (BinaryTree x l r) = BinaryTree x (reverseTree r) (reverseTree l)
+
+treeToList :: BinaryTree a -> [a]
+treeToList EmptyLeaf = []
+treeToList (BinaryTree x l r) = x : treeToList l ++ treeToList r
+
 
 {-
 You did it! Now it is time to open pull request with your changes
