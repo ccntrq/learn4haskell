@@ -575,8 +575,14 @@ False
 -}
 
 isVowel :: Char -> Bool
-isVowel c = c `elem` ['a', 'e', 'i', 'o','u']
-
+isVowel c =
+  case c of
+    'a' -> True
+    'e' -> True
+    'i' -> True
+    'o' -> True
+    'u' -> True
+    _ -> False
 
 {- |
 == Local variables and functions
